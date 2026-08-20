@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pack Board">
+<meta name="theme-color" content="#141d18">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="img/app-icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="img/app-icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="img/app-icon-512.png">
+<title>Pack Board</title>
+<script>
+/* 画面が描かれる前に明暗を決めます。
+   ここを後回しにすると、暗い設定の端末で一瞬だけ白い画面が出てしまいます。 */
+(function () {
+  try {
+    var pref = localStorage.getItem('pack-board-v1:theme') || 'auto';
+    var dark = pref === 'dark' ||
+               (pref === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  } catch (e) {
+    document.documentElement.dataset.theme = 'light';
+  }
+})();
+</script>
+<!-- ★ ?v= は「読み込み直させるための版番号」です。
+     css か js を直したら、ここの数字をすべて同じ値に1つ上げてください。 -->
+<link rel="stylesheet" href="css/style.css?v=20260819a">
+<!-- 色と書体。style.css より後ろで読むこと（土台の色を上書きするため） -->
+<link rel="stylesheet" href="css/design.css?v=20260819a">
+</head>
+<body>
+
+<!-- ===== しるしのもと =====
+     形をここに1回だけ書いて、下や js から <use href="#i-○○"> で呼び出します。
+     ★ i-home は Trip Board / Flight Board と同じ形です。3つそろえてください。 -->
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-home" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.9"
+       stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.2 11.3 12 4.2l8.8 7.1"/>
+      <path d="M5.6 10.1v9.7h12.8v-9.7"/>
+      <path d="M9.7 19.8v-5.2h4.6v5.2"/>
+    </g>
+  </symbol>
+
+  <!-- アプリのしるし。留め具の付いた紙ばさみ。アイコンと同じ形です -->
+  <symbol id="i-board" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.6"
+       stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4.4" y="4.6" width="15.2" height="16.2" rx="2.2"/>
+      <path d="M9.2 4.6V3.9a2.8 2.8 0 0 1 5.6 0v.7"/>
+      <path d="M8.6 4.6h6.8"/>
+      <path d="M12.4 10.2h4.2M12.4 14h4.2M12.4 17.4h2.6"/>
+      <path d="m7.2 9.6 1.2 1.2 2-2.2"/>
+      <rect x="7" y="12.8" width="2.6" height="2.6" rx=".7"/>
+      <rect x="7" y="16.4" width="2.6" height="2.6" rx=".7"/>
+    </g>
+  </symbol>
+
+  <!-- カバンに入れた印 -->
+  <symbol id="i-check" viewBox="0 0 24 24">
+    <path fill="none" stroke="currentColor" stroke-width="2.6"
+          stroke-linecap="round" stroke-linejoin="round" d="m5 12.6 4.6 4.6L19 6.6"/>
+  </symbol>
+
+  <symbol id="i-trash" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.7"
+       stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.6 6.6h14.8"/>
+      <path d="M9.2 6.6V4.9a1.3 1.3 0 0 1 1.3-1.3h3a1.3 1.3 0 0 1 1.3 1.3v1.7"/>
+      <path d="M6.6 6.6v12.6a1.6 1.6 0 0 0 1.6 1.6h7.6a1.6 1.6 0 0 0 1.6-1.6V6.6"/>
+      <path d="M10.4 10.4v6.4M13.6 10.4v6.4"/>
+    </g>
+  </symbol>
+
+  <symbol id="i-case" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.5"
+       stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2.8" y="7" width="18.4" height="13.2" rx="2.4"/>
+      <path d="M8.4 7V5.4a1.8 1.8 0 0 1 1.8-1.8h3.6a1.8 1.8 0 0 1 1.8 1.8V7"/>
+      <path d="M2.8 12.2h18.4"/>
+    </g>
+  </symbol>
+
+  <!-- ---- 分類のしるし ----
+       飾りであると同時に目印です。見出しを読まなくても、形で
+       「お金まわり」「洗面・薬」の当たりが付くようにしています。
+       囲みが無いので押せません（4つのアプリ共通の決めごと）。 -->
+  <symbol id="i-c-must" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.9"
+       stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3.6 21 19.4H3z"/><path d="M12 9.6v3.8"/>
+      <circle cx="12" cy="16.4" r=".3"/>
+    </g>
+  </symbol>
+  <symbol id="i-c-money" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.8"
+       stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="8.4"/>
+      <path d="M12 7.4v9.2M9.6 9.8h4.2a1.9 1.9 0 0 1 0 3.8h-3.6"/>
+    </g>
+  </symbol>
+  <symbol id="i-c-elec" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.8"
+       stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 3.6v5M15 3.6v5"/>
+      <path d="M6.4 8.6h11.2v3.2a5.6 5.6 0 0 1-11.2 0z"/>
+      <path d="M12 17.4v3"/>
+    </g>
+  </symbol>
+  <symbol id="i-c-cloth" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.7"
+       stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 3.8 4.2 6.6l1.6 4 2-.8v9.4h8.4v-9.4l2 .8 1.6-4L15 3.8"/>
+      <path d="M9 3.8a3 3 0 0 0 6 0"/>
+    </g>
+  </symbol>
+  <symbol id="i-c-wash" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.8"
+       stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3.4c3.6 4.2 5.6 7 5.6 9.4a5.6 5.6 0 1 1-11.2 0c0-2.4 2-5.2 5.6-9.4z"/>
+    </g>
+  </symbol>
+  <symbol id="i-c-local" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.7"
+       stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 21s6.4-5.8 6.4-10.4a6.4 6.4 0 1 0-12.8 0C5.6 15.2 12 21 12 21z"/>
+      <circle cx="12" cy="10.4" r="2.3"/>
+    </g>
+  </symbol>
+  <symbol id="i-c-other" viewBox="0 0 24 24">
+    <g fill="currentColor">
+      <circle cx="6" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/>
+      <circle cx="18" cy="12" r="1.7"/>
+    </g>
+  </symbol>
+  <!-- 自分で足した分類のしるし（荷札） -->
+  <symbol id="i-c-tag" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.8"
+       stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11.4 3.6H20v8.6l-8.8 8.8-8.6-8.6z"/>
+      <circle cx="16.2" cy="7.8" r="1.5"/>
+    </g>
+  </symbol>
+
+  <!-- 更新のしるし。時計回りの矢印は「読み込み直す」の共通の形です -->
+  <symbol id="i-refresh" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="2"
+       stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="23 4 23 10 17 10"/>
+      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+    </g>
+  </symbol>
+</svg>
+
+<!-- ===== ヘッダー ===== -->
+<header class="app-header">
+  <div class="app-header__inner">
+    <!-- 旅の道具箱（玄関）へ戻る。3つのアプリで同じ形・同じ大きさです -->
+    <a class="home-link" href="../"
+       title="旅の道具箱に戻る" aria-label="旅の道具箱に戻る">
+      <svg class="home-link__icon" aria-hidden="true"><use href="#i-home"/></svg>
+    </a>
+    <button type="button" class="app-title" id="homeBtn" title="上に戻る">
+      <span class="app-title__mark" aria-hidden="true">
+        <svg class="app-title__glyph"><use href="#i-board"/></svg>
+      </span>
+      <span class="app-title__text">
+        <span class="app-title__main">Pack Board</span>
+        <span class="app-title__sub">持ち物を確かめる</span>
+      </span>
+    </button>
+    <div class="head-btns">
+      <!-- 手動での更新。ふだんは sw.js が自動で新しくします（js/update.js） -->
+      <button type="button" class="head-icon" id="updateBtn"
+              title="最新版に更新" aria-label="最新版に更新">
+        <svg class="head-icon__i" aria-hidden="true"><use href="#i-refresh"/></svg>
+      </button>
+      <button type="button" class="head-btn" id="themeBtn">自動</button>
+    </div>
+  </div>
+
+  <!-- リストの切り替え。行き先や目的ごとに分けて持てます -->
+  <nav class="chips" id="listChips" aria-label="リストの切り替え"></nav>
+</header>
+
+<main class="page">
+
+  <section class="prog" id="progress"></section>
+
+  <div class="toolbar">
+    <button type="button" class="btn btn--main" id="addItemBtn">＋ 持ち物を足す</button>
+    <button type="button" class="btn" id="resetBtn">チェックを外す</button>
+    <button type="button" class="btn" id="editBtn">編集</button>
+  </div>
+
+  <div id="items"></div>
+
+  <!-- リストそのものの操作。めったに使わないので下に置きます -->
+  <details class="listops">
+    <summary class="listops__head">このリストの設定</summary>
+    <div class="listops__body">
+      <button type="button" class="btn" id="renameBtn">名前を変える</button>
+      <button type="button" class="btn" id="copyBtn">うつしを作る</button>
+      <button type="button" class="btn" id="seedBtn">見本から足りないものを足す</button>
+      <div class="copyfrom">
+        <label class="copyfrom__label" for="copyFromSel">ほかのリストから持ってくる</label>
+        <div class="copyfrom__row">
+          <select class="copyfrom__sel" id="copyFromSel"></select>
+          <button type="button" class="btn" id="copyFromBtn">持ってくる</button>
+        </div>
+      </div>
+      <button type="button" class="btn btn--danger" id="delListBtn">このリストを消す</button>
+      <p class="listops__note">
+        「うつしを作る」は、いまの持ち物をそのまま写した別のリストを作ります。
+        チェックは外れた状態から始まります。
+        <strong>行き先ごとに少しずつ違うリストを作るときに使ってください。</strong>
+      </p>
+      <p class="listops__note">
+        「ほかのリストから持ってくる」は、えらんだリストの持ち物のうち、
+        <strong>いまのリストに無いものだけ</strong>を足します。
+        海外旅行と国内旅行はかなり重なるので、
+        <strong>同じ名前のものは足しません。</strong>
+        同じ行が2つ並ぶと、数えて確かめるときに合わなくなるためです。
+      </p>
+      <p class="listops__note">
+        「見本から足りないものを足す」は、はじめから入っている見本と見くらべて、
+        <strong>いまのリストに無いものだけ</strong>を足します。同じ名前のものは足しません。
+        見本が増えたときに使ってください。勝手に増えることはなく、押したときだけ足します。
+        <strong>前に消したものも「無いもの」なので戻ってきます。</strong>
+        要らなければ、そのまま消し直してください（「元に戻す」でまとめて取り消せます）。
+      </p>
+    </div>
+  </details>
+
+  <!-- 端末をまたいだ同期。APP.syncUrl が空のあいだは丸ごと隠れます -->
+  <details class="listops is-hidden" id="syncBox">
+    <summary class="listops__head">ほかの端末と合わせる</summary>
+    <div class="listops__body">
+      <p class="sync__state" id="syncState"></p>
+      <label class="form__label" for="pinInput">合言葉</label>
+      <input type="password" class="form__input" id="pinInput"
+             placeholder="8文字以上（当てにくいものに）" autocomplete="off"
+             inputmode="text" enterkeyhint="done">
+      <div class="sync__btns">
+        <button type="button" class="btn btn--main" id="pinSaveBtn">つなぐ</button>
+        <button type="button" class="btn" id="syncNowBtn">いま合わせる</button>
+        <button type="button" class="btn btn--danger" id="pinOffBtn">やめる</button>
+      </div>
+      <p class="listops__note">
+        <strong>同じ合言葉を入れた端末どうしだけ</strong>が合わさります。
+        Mac と iPhone に同じ合言葉を入れれば、どちらで直しても両方に届きます。
+        <strong>合言葉が違えば、中身は互いに見えません。</strong>
+        人に配るときは、その人には別の合言葉を決めてもらってください。
+      </p>
+      <p class="listops__note">
+        直したものは<strong>まず端末の中に入ります</strong>ので、
+        機内でも山の中でも使えます。つながったときに自動で送られます。
+        <strong>1件ずつ送るので、2つの端末で同時に直しても消えません。</strong>
+      </p>
+      <p class="listops__note">
+        「やめる」を押すと、この端末だけ合わせるのをやめます。
+        <strong>持ち物は消えません。</strong>
+      </p>
+    </div>
+  </details>
+
+  <!-- ★同期をつなぐと「サーバーには送っていない」が事実でなくなります。
+       いまの状態に合わせて js が書き分けます（renderFineprint）。 -->
+  <p class="fineprint" id="fineprint"></p>
+
+</main>
+
+<!-- ===== 持ち物の入力 ===== -->
+<div class="form-backdrop is-hidden" id="formBackdrop"></div>
+<div class="form is-hidden" id="itemForm" role="dialog" aria-modal="true"
+     aria-labelledby="formTitle">
+  <h2 class="form__title" id="formTitle">持ち物を足す</h2>
+  <label class="form__label" for="fName">名前</label>
+  <input type="text" class="form__input" id="fName" placeholder="例：モバイルバッテリー"
+         autocomplete="off" enterkeyhint="done">
+  <label class="form__label" for="fCat">分類</label>
+  <select class="form__input" id="fCat"></select>
+  <label class="form__label" for="fNote">メモ（なくてもかまいません）</label>
+  <input type="text" class="form__input" id="fNote"
+         placeholder="例：預け入れには入れられない" autocomplete="off">
+  <div class="form__btns">
+    <button type="button" class="btn" id="formCancel">やめる</button>
+    <button type="button" class="btn btn--main" id="formSave">入れる</button>
+  </div>
+</div>
+
+<!-- ===== 二択の問いかけ =====
+     素の confirm() ではなくアプリ自前の形にしています。
+     見た目がそろうのと、押す前に何が起きるかを長く書けるためです。 -->
+<div class="form is-hidden" id="askBox" role="dialog" aria-modal="true"
+     aria-labelledby="askTitle">
+  <h2 class="form__title" id="askTitle"></h2>
+  <p class="ask__text" id="askText"></p>
+  <div class="form__btns">
+    <button type="button" class="btn" id="askNo"></button>
+    <button type="button" class="btn btn--main" id="askYes"></button>
+  </div>
+</div>
+
+<script src="js/config.js?v=20260819a"></script>
+<script src="js/sync.js?v=20260819a"></script>
+<script src="js/app.js?v=20260819a"></script>
+<script src="js/update.js?v=20260819a"></script>
+</body>
+</html>

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<!-- 上の帯が明るい色になったので、iPhone の時計や電池は黒で出す必要があります。
+     black-translucent のままだと白文字になって読めません。
+     ★これも追加した瞬間に焼き付く項目です。 -->
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Travel Box">
+<meta name="theme-color" content="#d3e5f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14303f" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="img/app-icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="img/app-icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="img/app-icon-512.png">
+<title>Travel Box</title>
+<script>
+/* 画面が描かれる前に明暗を決めます。中のアプリと同じ保存先を使わないよう、
+   玄関は玄関で自分の設定を持ちます。 */
+(function () {
+  try {
+    var pref = localStorage.getItem('travel-box-v1:theme') || 'auto';
+    var dark = pref === 'dark' ||
+               (pref === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  } catch (e) {
+    document.documentElement.dataset.theme = 'light';
+  }
+})();
+</script>
+<!-- ★ ?v= は「読み込み直させるための版番号」です。
+     css を直したら、ここを1つ上げてください。 -->
+<link rel="stylesheet" href="css/entry.css?v=20260817a">
+</head>
+<body>
+
+<!-- ===== しるしのもと =====
+     形をここに1回だけ書いて、下から <use> で呼び出します。
+     同じ形を何度も書かずに済み、大きさと色は呼び出す側で決められます。
+     地球と飛行機は中の2つのアプリの目印でもあるので、
+     形を変えるときは Trip Board / Flight Board のヘッダーもそろえてください。 -->
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-globe" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <circle cx="12" cy="12" r="8.6"/>
+      <ellipse cx="12" cy="12" rx="3.9" ry="8.6"/>
+      <path d="M4 9.3h16M4 14.7h16M12 3.4v17.2"/>
+    </g>
+    <!-- 行き先の点。ひとつだけ色を差して、地球儀ではなく「旅の目的地」に見せます -->
+    <circle class="i-ac" cx="15.3" cy="8.2" r="1.5"/>
+  </symbol>
+
+  <symbol id="i-plane" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M12 2.4c1.05 0 1.75 1.35 1.75 3v3.05l7.15 4.2v2.1
+      l-7.15-2.2v4.05l2.2 1.6v1.6L12 18.7l-3.95 1.1v-1.6l2.2-1.6v-4.05L3.1 14.75v-2.1
+      l7.15-4.2V5.4c0-1.65.7-3 1.75-3z"/>
+  </symbol>
+
+  <!-- 更新のしるし。時計回りの矢印は「読み込み直す」の共通の形です -->
+  <symbol id="i-refresh" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="2"
+       stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="23 4 23 10 17 10"/>
+      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+    </g>
+  </symbol>
+
+  <!-- Pack Board のしるし。留め具の付いた紙ばさみ -->
+  <symbol id="i-board" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.6"
+       stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4.4" y="4.6" width="15.2" height="16.2" rx="2.2"/>
+      <path d="M9.2 4.6V3.9a2.8 2.8 0 0 1 5.6 0v.7"/>
+      <path d="M8.6 4.6h6.8"/>
+      <path d="M12.4 10.2h4.2M12.4 14h4.2M12.4 17.4h2.6"/>
+      <path d="m7.2 9.6 1.2 1.2 2-2.2"/>
+      <rect x="7" y="12.8" width="2.6" height="2.6" rx=".7"/>
+      <rect x="7" y="16.4" width="2.6" height="2.6" rx=".7"/>
+    </g>
+  </symbol>
+
+  <!-- Entry Board のしるし。パスポートに判が押された形 -->
+  <symbol id="i-passport" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.7"
+       stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4.6" y="2.8" width="14.8" height="18.4" rx="2.2"/>
+      <circle cx="12" cy="9.4" r="2.9"/>
+      <path d="M8.6 16.4h6.8"/>
+    </g>
+  </symbol>
+
+  <!-- Rate Board のしるし。横長のお札に円記号。
+       円記号は線だけで描いてあるので、書体の無い端末でも同じ形になります。
+       ★ Entry Board のパスポートも「四角の中に何か」ですが、
+          あちらは縦長、こちらは横長にして見分けが付くようにしています。
+       ★ 線と線のすきまは 1.5 以上を保ってください。
+          これより詰めると、34px で描いたとき線どうしがくっついて
+          記号に見えなくなります（実際に一度そうなりました）。 -->
+  <symbol id="i-rate" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.5"
+       stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2.6" y="5" width="18.8" height="14" rx="2.6"/>
+      <path d="M8.9 7.8 L12 11.2 L15.1 7.8"/>
+      <path d="M12 11.2 V16.4"/>
+      <path d="M9.4 12.7h5.2M9.4 14.6h5.2"/>
+    </g>
+  </symbol>
+
+  <symbol id="i-case" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.5"
+       stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2.8" y="7" width="18.4" height="13.2" rx="2.4"/>
+      <path d="M8.4 7V5.4a1.8 1.8 0 0 1 1.8-1.8h3.6a1.8 1.8 0 0 1 1.8 1.8V7"/>
+      <path d="M2.8 12.2h18.4"/>
+    </g>
+  </symbol>
+</svg>
+
+<header class="hero">
+  <!-- 上の帯の絵。地球とその周りを回る点線が、中の2つのアプリ
+       （行き先を選ぶ／飛び方を調べる）をそのまま表しています。
+       文字より薄くしてあるので、見出しの読みやすさは変わりません。 -->
+  <svg class="hero__art" viewBox="0 0 200 150" aria-hidden="true" focusable="false">
+    <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <circle cx="120" cy="76" r="46"/>
+      <ellipse cx="120" cy="76" rx="20" ry="46"/>
+      <path d="M74 76h92M82.5 53h75M82.5 99h75"/>
+      <ellipse cx="120" cy="76" rx="68" ry="27"
+               transform="rotate(-26 120 76)" stroke-dasharray="4 7"/>
+    </g>
+    <path fill="currentColor" transform="translate(179 45) rotate(58) scale(1.25)"
+          d="M0-9c.9 0 1.5 1.1 1.5 2.5v2.5l6.1 3.6v1.8L1.5 4.5V8l1.9 1.4v1.4L0 10l-3.4.8
+             v-1.4L-1.5 8V4.5l-6.1 1.9V4.6l6.1-3.6v-2.5C-1.5-7.9-.9-9 0-9z"/>
+  </svg>
+
+  <div class="hero__inner">
+    <p class="hero__kicker">TRAVEL BOX</p>
+    <h1 class="hero__title">旅の道具箱</h1>
+    <p class="hero__sub" id="heroSub">読み込み中…</p>
+  </div>
+  <div class="hero__btns">
+    <!-- 手動での更新。ふだんは sw.js が自動で新しくしますが、
+         古い画面のままのときはここを押します（js/update.js） -->
+    <button type="button" class="head-icon" id="updateBtn"
+            title="最新版に更新" aria-label="最新版に更新">
+      <svg class="head-icon__i" aria-hidden="true"><use href="#i-refresh"/></svg>
+    </button>
+    <button type="button" class="theme-btn" id="themeBtn">自動</button>
+  </div>
+</header>
+
+<main class="page">
+
+  <!-- ===== アプリの一覧 ===== -->
+  <nav class="apps" aria-label="アプリ">
+
+    <a class="app app--trip" href="Trip-Board/index.html">
+      <span class="app__icon" aria-hidden="true">
+        <svg class="app__mark"><use href="#i-globe"/></svg>
+      </span>
+      <span class="app__body">
+        <span class="app__name">Trip Board</span>
+        <span class="app__desc">行き先を比較する</span>
+        <span class="app__detail">ベストシーズン・雨季・物価・治安・時差・行事・独自ルール</span>
+      </span>
+      <span class="app__chev" aria-hidden="true">›</span>
+    </a>
+
+    <a class="app app--flight" href="Flight-Board/index.html">
+      <span class="app__icon" aria-hidden="true">
+        <svg class="app__mark app__mark--plane"><use href="#i-plane"/></svg>
+      </span>
+      <span class="app__body">
+        <span class="app__name">Flight Board</span>
+        <span class="app__desc">飛び方を調べる</span>
+        <span class="app__detail">路線・空港・航空会社・機材・特典航空券・アライアンス</span>
+      </span>
+      <span class="app__chev" aria-hidden="true">›</span>
+    </a>
+
+    <a class="app app--entry" href="Entry-Board/index.html">
+      <span class="app__icon" aria-hidden="true">
+        <svg class="app__mark"><use href="#i-passport"/></svg>
+      </span>
+      <span class="app__body">
+        <span class="app__name">Entry Board</span>
+        <span class="app__desc">入国の手続きを調べる</span>
+        <span class="app__detail">電子入国書・ビザ・そのほかの申請・公式サイト</span>
+      </span>
+      <span class="app__chev" aria-hidden="true">›</span>
+    </a>
+
+    <a class="app app--pack" href="Pack-Board/index.html">
+      <span class="app__icon" aria-hidden="true">
+        <svg class="app__mark"><use href="#i-board"/></svg>
+      </span>
+      <span class="app__body">
+        <span class="app__name">Pack Board</span>
+        <span class="app__desc">持ち物を確かめる</span>
+        <span class="app__detail">行き先ごとのリスト・忘れ物チェック・自分用に登録</span>
+      </span>
+      <span class="app__chev" aria-hidden="true">›</span>
+    </a>
+
+    <!-- ★ リンク先が他の4つと違います。
+         外貨計算アプリの実体は ~/Coding/外貨計算/ にあり、Travel Box の中には
+         置いていません（あちらは単独のアプリとしても公開しているためです）。
+         組み立てのとき「Rate-Board/index.html」に書き換わります。
+         配布用には web-haifu/、私用には web/ が入ります。 -->
+    <a class="app app--rate" href="Rate-Board/index.html">
+      <span class="app__icon" aria-hidden="true">
+        <svg class="app__mark"><use href="#i-rate"/></svg>
+      </span>
+      <span class="app__body">
+        <span class="app__name">Rate Board</span>
+        <span class="app__desc">払う額を見くらべる</span>
+        <span class="app__detail">カードの支払総額・両替レート・世界410都市の両替所</span>
+      </span>
+      <span class="app__chev" aria-hidden="true">›</span>
+    </a>
+
+  </nav>
+
+
+  <footer class="foot">
+    <svg class="foot__mark" aria-hidden="true"><use href="#i-case"/></svg>
+    <p>ホーム画面にはこの1つだけを追加すれば、中の5つを行き来できます。</p>
+  </footer>
+
+</main>
+
+<script>
+/* 明暗の切り替え。中のアプリと同じ操作感に揃えています。 */
+(function () {
+  var btn = document.getElementById('themeBtn');
+  var key = 'travel-box-v1:theme';
+  var order = ['auto', 'light', 'dark'];
+  var label = { auto: '自動', light: '明', dark: '暗' };
+
+  function apply(pref) {
+    var dark = pref === 'dark' ||
+      (pref === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    btn.textContent = label[pref];
+  }
+
+  var pref = localStorage.getItem(key) || 'auto';
+  apply(pref);
+  btn.addEventListener('click', function () {
+    pref = order[(order.indexOf(pref) + 1) % order.length];
+    try { localStorage.setItem(key, pref); } catch (e) { /* 無視 */ }
+    apply(pref);
+  });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+    apply(pref);
+  });
+})();
+
+/* 見出しの下に、いまの日本時刻と「来月のおすすめ」への入口を出します。
+   玄関に来た時点でひとつだけ判断の材料があると、次に押す場所が決まります。 */
+(function () {
+  var now = new Date();
+  var next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  var m = next.getMonth() + 1;
+  var sub = document.getElementById('heroSub');
+  sub.innerHTML = '来月は' + m + '月です。' +
+    '<a href="Trip-Board/index.html">' + m + '月に行きやすい国を見る</a>';
+
+  /* Trip Board 側は選んだ月を保存して開くので、
+     ここで先に書き込んでおけば、開いた瞬間にその月で並びます。 */
+  try {
+    var key = 'trip-board-v1:state';
+    var s = JSON.parse(localStorage.getItem(key) || '{}');
+    var link = sub.querySelector('a');
+    link.addEventListener('click', function () {
+      s.month = m;
+      localStorage.setItem(key, JSON.stringify(s));
+    });
+  } catch (e) { /* 保存できなくてもリンクは働きます */ }
+})();
+</script>
+<script src="js/update.js?v=20260817a"></script>
+
+<script>
+/* 世話係の登録。これが無いと sw.js は働きません。
+   ★この行が入った版を上げた直後だけ、ホーム画面のアイコンを
+     いったん消して追加し直す必要があります（古いページには
+     登録が入っていないため）。以降は自動で新しくなります。 */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  });
+}
+</script>
+</body>
+</html>

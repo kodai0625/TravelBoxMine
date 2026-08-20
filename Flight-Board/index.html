@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Flight Board">
+<meta name="theme-color" content="#0f1620">
+<!-- ホーム画面に追加したときのアイコン／ブラウザのタブのアイコン -->
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="img/app-icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="img/app-icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="img/app-icon-512.png">
+<title>Flight Board</title>
+<script>
+/* 画面が描かれる前に明暗を決めます。
+   ここを後回しにすると、暗い設定の端末で一瞬だけ白い画面が出てしまいます。 */
+(function () {
+  try {
+    var pref = localStorage.getItem('flight-board-v1:theme') || 'auto';
+    var dark = pref === 'dark' ||
+               (pref === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  } catch (e) {
+    document.documentElement.dataset.theme = 'light';
+  }
+})();
+</script>
+<!-- ★ ?v= は「読み込み直させるための版番号」です。
+     css か js を直したら、ここの数字をすべて同じ値に1つ上げてください。
+     上げないとブラウザが古いファイルを使い続け、直したはずの画面が変わりません。 -->
+<link rel="stylesheet" href="css/style.css?v=20260815f">
+<!-- 色と書体。style.css より後ろで読むこと（土台の色を上書きするため） -->
+<link rel="stylesheet" href="css/design.css?v=20260815f">
+</head>
+<body>
+
+<!-- ===== しるしのもと =====
+     形をここに1回だけ書いて、下から <use href="#i-○○"> で呼び出します。
+     大きさと色は呼び出す側で決めます（線は currentColor）。
+
+     ★ i-plane は Travel Box（玄関）のカードと同じ形です。
+       玄関でこのアプリを表しているしるしなので、片方だけ変えないでください。 -->
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-plane" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M12 2.4c1.05 0 1.75 1.35 1.75 3v3.05l7.15 4.2v2.1
+      l-7.15-2.2v4.05l2.2 1.6v1.6L12 18.7l-3.95 1.1v-1.6l2.2-1.6v-4.05L3.1 14.75v-2.1
+      l7.15-4.2V5.4c0-1.65.7-3 1.75-3z"/>
+  </symbol>
+
+  <!-- 読み込み中に回す点線の輪 -->
+  <symbol id="i-orbit" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="10.8" fill="none" stroke="currentColor"
+            stroke-width="1.3" stroke-linecap="round" stroke-dasharray="2.4 4.6"/>
+  </symbol>
+
+  <symbol id="i-home" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.9"
+       stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.2 11.3 12 4.2l8.8 7.1"/>
+      <path d="M5.6 10.1v9.7h12.8v-9.7"/>
+      <path d="M9.7 19.8v-5.2h4.6v5.2"/>
+    </g>
+  </symbol>
+
+  <!-- ---- タブのしるし ---- -->
+  <symbol id="i-route" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.7"
+       stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6.2 17.6C8.4 12.4 12.2 8.6 17.6 6.4" stroke-dasharray="2.2 3"/>
+      <circle cx="4.7" cy="19.3" r="1.9"/>
+      <circle cx="19.3" cy="4.7" r="1.9"/>
+    </g>
+  </symbol>
+  <symbol id="i-airport" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.7"
+       stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9.4 20.6V10.4h5.2v10.2"/>
+      <path d="m8 10.4 4-3.8 4 3.8M12 6.6V3.4"/>
+      <path d="M6.2 20.6h11.6"/>
+    </g>
+  </symbol>
+  <!-- 航空会社は尾翼。会社の色や印が入るのが尾翼なので、
+       この業界ではそのまま「航空会社」を表す形として通っています。
+       胴体の線を足さないと、ただの三角形に見えてしまいます。 -->
+  <symbol id="i-airline" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.6"
+       stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8.8 19.4c.3-5.4 2.7-10.6 6.6-14.4h2.2c1 4.7 1.2 9.6.8 14.4z"/>
+      <path d="M4.2 19.4h15.6"/>
+    </g>
+  </symbol>
+  <!-- 機材は機体そのもの。ヘッダーのしるしと同じ形ですが、
+       あちらは塗り、こちらは線にして役割を分けています。 -->
+  <symbol id="i-aircraft" viewBox="0 0 24 24">
+    <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"
+          d="M12 2.9c1 0 1.7 1.3 1.7 2.9v3l6.9 4.1v1.9l-6.9-2.1v3.9l2.1 1.5v1.5L12 18.7
+             l-3.8.9v-1.5l2.1-1.5v-3.9l-6.9 2.1v-1.9l6.9-4.1v-3c0-1.6.7-2.9 1.7-2.9z"/>
+  </symbol>
+  <symbol id="i-award" viewBox="0 0 24 24">
+    <path fill="none" stroke="currentColor" stroke-width="1.6"
+          stroke-linejoin="round"
+          d="m12 3.8 2.5 5.1 5.6.8-4.1 4 1 5.6-5-2.7-5 2.7 1-5.6-4.1-4 5.6-.8z"/>
+  </symbol>
+  <!-- アライアンスは組み合った3つの輪。小さく描くと潰れるので、
+       輪を大きめにして線を細くし、重なりが見えるようにしています。 -->
+  <symbol id="i-alliance" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.4">
+      <circle cx="8.3" cy="9.1" r="5.3"/>
+      <circle cx="15.7" cy="9.1" r="5.3"/>
+      <circle cx="12" cy="15.5" r="5.3"/>
+    </g>
+  </symbol>
+  <!-- 更新のしるし。時計回りの矢印は「読み込み直す」の共通の形です -->
+  <symbol id="i-refresh" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="2"
+       stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="23 4 23 10 17 10"/>
+      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+    </g>
+  </symbol>
+</svg>
+
+<!-- ===== ヘッダー ===== -->
+<header class="app-header">
+  <div class="app-header__inner">
+    <!-- 旅の道具箱（玄関）へ戻る。玄関を通さず直接開いたときも押せます。
+         家の形にしているのは、戻る先がこのアプリの最初の画面ではなく
+         入れ物のほうだと、記号だけで分かるようにするためです。 -->
+    <a class="home-link" href="../"
+       title="旅の道具箱に戻る" aria-label="旅の道具箱に戻る">
+      <svg class="home-link__icon" aria-hidden="true"><use href="#i-home"/></svg>
+    </a>
+    <button type="button" class="app-title" id="homeBtn" title="最初の画面に戻る">
+      <span class="app-title__mark" aria-hidden="true">
+        <svg class="app-title__glyph"><use href="#i-plane"/></svg>
+      </span>
+      <span class="app-title__text">
+        <span class="app-title__main" id="appTitle">Flight Board</span>
+        <span class="app-title__sub" id="appSub">空港・航空会社・アライアンス</span>
+      </span>
+    </button>
+    <div class="head-btns">
+      <!-- 手動での更新。ふだんは sw.js が自動で新しくしますが、
+           古い画面のままのときはここを押します（js/update.js） -->
+      <button type="button" class="head-icon" id="updateBtn"
+              title="最新版に更新" aria-label="最新版に更新">
+        <svg class="head-icon__i" aria-hidden="true"><use href="#i-refresh"/></svg>
+      </button>
+      <!-- 明暗の切替。自動＝端末の設定に追従 -->
+      <button type="button" class="head-btn" id="themeBtn">自動</button>
+    </div>
+  </div>
+
+  <!-- 画面の切り替えタブ。
+       しるしを文字の上に積んでいます。6つ並ぶので横に置く余地がなく、
+       積めば「アライアンス」の文字幅を変えずにしるしを足せます。
+       （タブが4つの Trip Board は横に並べています） -->
+  <nav class="tabs" id="tabs" aria-label="表示切替">
+    <button type="button" class="tabs__btn is-active" data-tab="routes">
+      <svg class="tabs__i" aria-hidden="true"><use href="#i-route"/></svg>路線</button>
+    <button type="button" class="tabs__btn" data-tab="airports">
+      <svg class="tabs__i" aria-hidden="true"><use href="#i-airport"/></svg>空港</button>
+    <button type="button" class="tabs__btn" data-tab="airlines">
+      <svg class="tabs__i" aria-hidden="true"><use href="#i-airline"/></svg>航空会社</button>
+    <button type="button" class="tabs__btn" data-tab="aircraft">
+      <svg class="tabs__i" aria-hidden="true"><use href="#i-aircraft"/></svg>機材</button>
+    <button type="button" class="tabs__btn" data-tab="awards">
+      <svg class="tabs__i" aria-hidden="true"><use href="#i-award"/></svg>特典</button>
+    <button type="button" class="tabs__btn" data-tab="alliances">
+      <svg class="tabs__i" aria-hidden="true"><use href="#i-alliance"/></svg>アライアンス</button>
+  </nav>
+</header>
+
+<main class="page">
+
+  <!-- ===== 読み込み中／読み込み失敗 ===== -->
+  <section class="notice" id="loading">
+    <span class="loader" aria-hidden="true">
+      <svg class="loader__ring"><use href="#i-orbit"/></svg>
+      <svg class="loader__mark"><use href="#i-plane"/></svg>
+    </span>
+    <p class="notice__text">データを読み込んでいます…</p>
+  </section>
+  <section class="notice notice--error is-hidden" id="loadError">
+    <p class="notice__text" id="loadErrorText"></p>
+  </section>
+
+  <!-- ===== 路線 ===== -->
+  <section class="view is-hidden" id="viewRoutes">
+    <!-- 出発だけ入れれば就航先の一覧、到着も入れれば直行便の有無が出ます -->
+    <div class="picker" id="pickerFrom">
+      <label class="picker__label" for="fromInput">出発</label>
+      <div class="search">
+        <input type="search" class="search__input" id="fromInput"
+               placeholder="空港名・コード（例：NGO）"
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <button type="button" class="search__clear is-hidden" id="fromClear" aria-label="消す">✕</button>
+      </div>
+      <ul class="suggest is-hidden" id="fromSuggest"></ul>
+    </div>
+
+    <div class="picker__swap-row">
+      <button type="button" class="swap-btn" id="swapBtn" title="出発と到着を入れ替える">⇅ 入れ替え</button>
+    </div>
+
+    <div class="picker" id="pickerTo">
+      <label class="picker__label" for="toInput">到着<span class="picker__hint">（空欄なら就航先を一覧）</span></label>
+      <div class="search">
+        <input type="search" class="search__input" id="toInput"
+               placeholder="空港名・コード（例：HND）"
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <button type="button" class="search__clear is-hidden" id="toClear" aria-label="消す">✕</button>
+      </div>
+      <ul class="suggest is-hidden" id="toSuggest"></ul>
+    </div>
+
+    <!-- 表示の切替と絞り込み -->
+    <div class="route-toolbar">
+      <div class="viewtoggle" role="tablist" aria-label="表示方法">
+        <button type="button" class="viewtoggle__btn is-active" data-rview="list" role="tab">一覧</button>
+        <button type="button" class="viewtoggle__btn" data-rview="map" role="tab">地図</button>
+      </div>
+      <button type="button" class="filter-btn" id="filterToggle" aria-expanded="false">
+        絞り込み<span class="filter-btn__count is-hidden" id="filterCount"></span>
+      </button>
+    </div>
+
+    <!-- エリアの絞り込み。就航先があるエリアだけを出すので中身は動的 -->
+    <div class="chips" id="areaFilters"></div>
+
+    <!-- そのほかの絞り込み。畳んでおいて、必要なときだけ開く -->
+    <div class="filter-panel is-hidden" id="filterPanel">
+      <p class="filter-panel__label">アライアンス</p>
+      <div class="chips" id="allianceFilters">
+        <button type="button" class="chip is-active" data-alliance="">指定なし</button>
+        <button type="button" class="chip" data-alliance="star">スターアライアンス</button>
+        <button type="button" class="chip" data-alliance="oneworld">ワンワールド</button>
+        <button type="button" class="chip" data-alliance="skyteam">スカイチーム</button>
+      </div>
+
+      <p class="filter-panel__label">距離帯</p>
+      <div class="chips" id="bandFilters">
+        <button type="button" class="chip is-active" data-band="">指定なし</button>
+        <button type="button" class="chip" data-band="short">短距離<span class="chip__hint">〜約3時間</span></button>
+        <button type="button" class="chip" data-band="medium">中距離<span class="chip__hint">約3〜7時間</span></button>
+        <button type="button" class="chip" data-band="long">長距離<span class="chip__hint">約7時間〜</span></button>
+      </div>
+
+      <p class="filter-panel__label">航空会社の種類</p>
+      <div class="chips" id="carrierFilters">
+        <button type="button" class="chip is-active" data-carrier="">指定なし</button>
+        <button type="button" class="chip" data-carrier="lcc">LCC</button>
+        <button type="button" class="chip" data-carrier="fsc">フルサービス</button>
+      </div>
+      <p class="filter-panel__note">アライアンスとLCCの絞り込みは、航空会社マスタに収録している会社が対象です。未収録の会社しか飛んでいない路線は絞り込むと消えます。</p>
+    </div>
+
+    <!-- 一覧表示 -->
+    <div id="routeResult"></div>
+
+    <!-- 地図表示 -->
+    <div class="mapwrap is-hidden" id="mapWrap">
+      <canvas id="routeMap"></canvas>
+      <div class="map-legend">
+        <span class="map-legend__item"><i class="dot dot--origin"></i>出発</span>
+        <span class="map-legend__item"><i class="dot dot--dest"></i>就航先</span>
+        <span class="map-legend__sep"></span>
+        <span>ドラッグで移動・ピンチで拡大・就航先をタップで運航会社</span>
+      </div>
+      <button type="button" class="map-fit" id="mapFit">全体を表示</button>
+
+      <!-- 就航先をタップしたときに出る、その路線の運航会社 -->
+      <div class="map-info is-hidden" id="mapInfo">
+        <button type="button" class="map-info__close" id="mapInfoClose" aria-label="閉じる">✕</button>
+        <div id="mapInfoBody"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 空港 ===== -->
+  <section class="view is-hidden" id="viewAirports">
+    <div class="search">
+      <input type="search" class="search__input" id="airportSearch"
+             placeholder="空港名・都市・コード（例：NGO、名古屋）"
+             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <button type="button" class="search__clear is-hidden" id="airportClear" aria-label="消す">✕</button>
+    </div>
+
+    <!-- 絞り込み。規模で絞れると「主要空港だけ見たい」ときに早い -->
+    <div class="chips" id="airportFilters">
+      <button type="button" class="chip is-active" data-size="">すべて</button>
+      <button type="button" class="chip" data-size="L">大規模</button>
+      <button type="button" class="chip" data-size="M">中規模</button>
+      <button type="button" class="chip" data-size="S">小規模</button>
+      <button type="button" class="chip" data-country="JP">日本</button>
+    </div>
+
+    <p class="result-count" id="airportCount"></p>
+    <ul class="list" id="airportList"></ul>
+    <p class="list-more is-hidden" id="airportMore"></p>
+  </section>
+
+  <!-- ===== 航空会社 ===== -->
+  <section class="view is-hidden" id="viewAirlines">
+    <div class="search">
+      <input type="search" class="search__input" id="airlineSearch"
+             placeholder="航空会社名・コード（例：NH、ANA）"
+             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <button type="button" class="search__clear is-hidden" id="airlineClear" aria-label="消す">✕</button>
+    </div>
+
+    <div class="chips" id="airlineFilters">
+      <button type="button" class="chip is-active" data-alliance="">すべて</button>
+      <button type="button" class="chip" data-alliance="star">スターアライアンス</button>
+      <button type="button" class="chip" data-alliance="oneworld">ワンワールド</button>
+      <button type="button" class="chip" data-alliance="skyteam">スカイチーム</button>
+      <button type="button" class="chip" data-alliance="none">非加盟</button>
+    </div>
+
+    <p class="result-count" id="airlineCount"></p>
+    <ul class="list" id="airlineList"></ul>
+  </section>
+
+  <!-- ===== 機材 ===== -->
+  <section class="view is-hidden" id="viewAircraft">
+    <div class="search">
+      <input type="search" class="search__input" id="aircraftSearch"
+             placeholder="航空会社名・コード（例：ANA、JL、Qatar）"
+             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <button type="button" class="search__clear is-hidden" id="aircraftClear" aria-label="消す">✕</button>
+    </div>
+
+    <!-- 航空会社を選んでいるときに出る、ひとつ戻るための帯 -->
+    <button type="button" class="crumb is-hidden" id="aircraftBack">
+      <span aria-hidden="true">‹</span><span id="aircraftBackLabel">航空会社の一覧に戻る</span>
+    </button>
+
+    <p class="result-count" id="aircraftCount"></p>
+    <div id="aircraftList"></div>
+  </section>
+
+  <!-- ===== 特典航空券 ===== -->
+  <section class="view is-hidden" id="viewAwards">
+    <div class="search">
+      <input type="search" class="search__input" id="awardSearch"
+             placeholder="航空会社名・コード（例：ANA、JL、Avios）"
+             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <button type="button" class="search__clear is-hidden" id="awardClear" aria-label="消す">✕</button>
+    </div>
+    <p class="hint" id="awardIntro"></p>
+    <div class="chips" id="awardFilters">
+      <button type="button" class="chip is-active" data-alliance="">すべて</button>
+      <button type="button" class="chip" data-alliance="jp">日本の会社</button>
+      <button type="button" class="chip" data-alliance="star">スターアライアンス</button>
+      <button type="button" class="chip" data-alliance="oneworld">ワンワールド</button>
+      <button type="button" class="chip" data-alliance="skyteam">スカイチーム</button>
+      <button type="button" class="chip" data-alliance="none">アライアンス外</button>
+    </div>
+    <p class="result-count" id="awardCount"></p>
+    <div id="awardList"></div>
+  </section>
+
+  <!-- ===== アライアンス ===== -->
+  <section class="view is-hidden" id="viewAlliances">
+    <div class="alliance-wrap" id="allianceWrap"></div>
+  </section>
+
+</main>
+
+<!-- ===== 詳細パネル（空港・航空会社どちらもここに出す） ===== -->
+<div class="sheet-backdrop is-hidden" id="sheetBackdrop"></div>
+<aside class="sheet is-hidden" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="sheet__grip"></div>
+  <div class="sheet__head">
+    <h2 class="sheet__title" id="sheetTitle"></h2>
+    <button type="button" class="sheet__close" id="sheetClose" aria-label="閉じる">✕</button>
+  </div>
+  <div class="sheet__body" id="sheetBody"></div>
+</aside>
+
+<script src="js/config.js?v=20260815f"></script>
+<script src="js/data.js?v=20260815f"></script>
+<script src="js/map.js?v=20260815f"></script>
+<script src="js/app.js?v=20260815f"></script>
+<script src="js/update.js?v=20260815f"></script>
+</body>
+</html>

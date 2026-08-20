@@ -1,0 +1,341 @@
+/* ============================================================
+ *  Travel Box — 玄関のデザイン
+ *
+ *  上の帯はホーム画面のアイコンと同じ淡い藍にしています。
+ *  アイコンを押した先が同じ色で始まるので、つながって見えます。
+ *  それぞれのアプリの色（藍と金）はカードの中でだけ使います。
+ * ============================================================ */
+
+* { box-sizing: border-box; }
+
+:root {
+  --bg:        #f2efe9;
+  --surface:   #ffffff;
+  --surface-2: #f7f4ee;
+  --line:      #ddd7cb;
+  --text:      #1a1c22;
+  --text-sub:  #5f6470;
+  --text-weak: #6e737e;
+  /* 上の帯はアイコンの地と同じ色。ホーム画面のアイコンを押した先が
+     同じ色で始まるので、つながって見えます。 */
+  --hero-bg:   #d3e5f2;
+  --hero-bg-2: #c3daed;   /* 帯の下端。上端より少しだけ深い同系色 */
+  --hero-fg:   #12303f;   /* 10.7 : 1 */
+  --hero-sub:  #3c5f75;   /*  5.3 : 1 */
+  --hero-line: rgba(30, 74, 104, .3);
+  --trip:      #2f5d7c;
+  --flight:    #8f7016;
+  --pack:      #2f7d5b;
+  --entry:     #8a3a52;   /* あずき。白地で 7.5 : 1 */
+  --rate:      #5a3a7a;   /* 藤紫。白地で 9.1 : 1。他の4色と色味がいちばん離れています */
+  /* しるしを置く四角の地。アプリの色を薄く敷いて、
+     2枚のカードがひと目で別のものだと分かるようにしています。 */
+  --tile-trip:   #e7f0f7;
+  --tile-flight: #f6efd9;
+  --tile-pack:   #e6f1eb;
+  --tile-entry:  #f3e5e9;
+  --tile-rate:   #eee7f4;
+  --radius:    16px;
+  --shadow:    0 1px 3px rgba(30, 28, 20, .07);
+}
+
+:root[data-theme="dark"] {
+  --bg:        #0e1016;
+  --surface:   #171a22;
+  --surface-2: #1d2029;
+  --line:      #333846;
+  --text:      #e9eaee;
+  --text-sub:  #a2a7b3;
+  --text-weak: #8d929e;
+  --hero-bg:   #14303f;   /* 暗いときは同じ色味を深くした紺 */
+  --hero-bg-2: #0f2531;
+  --hero-fg:   #eaf3fa;
+  --hero-sub:  #9fbdd2;
+  --hero-line: rgba(200, 224, 240, .3);
+  --trip:      #7fb3d5;
+  --flight:    #c9a227;
+  --pack:      #5fbf92;
+  --entry:     #e8a0b4;   /* 暗い地の上なので明るく反転 */
+  --rate:      #c3a4e2;   /* 暗い地で 8.1 : 1 */
+  --tile-trip:   #1d2c37;
+  --tile-flight: #2a2718;
+  --tile-pack:   #1b2b23;
+  --tile-entry:  #2c1a20;
+  --tile-rate:   #241c2e;
+  --shadow:    none;
+}
+
+html, body { margin: 0; padding: 0; }
+
+/* しるしのもと。画面には出さず、<use> で呼び出すためだけに置いてあります。
+   display:none にすると Safari で <use> が働かないので、
+   場所を取らない形で残しています。 */
+.sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+/* しるしの中で1点だけ差す色。地球の「行き先の点」に使っています */
+.i-ac { fill: #d99a4e; stroke: none; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans",
+               "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  font-size: 15px;
+  line-height: 1.75;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ---------- 見出し ---------- */
+.hero {
+  position: relative;
+  overflow: hidden;                 /* 絵が右にはみ出す分を切ります */
+  /* 上端はアイコンと同じ色のまま（iPhone の時計まわりと地続きに見せるため）、
+     下へ行くほどわずかに深くします。板に厚みが出ます。 */
+  background: linear-gradient(180deg, var(--hero-bg) 0%, var(--hero-bg-2) 100%);
+  color: var(--hero-fg);
+  padding: calc(38px + env(safe-area-inset-top)) 22px 34px;
+  /* 下の角を丸めて、帯ではなく1枚の板に見せます。
+     下地の生成りが角からのぞくので、階層が伝わります。 */
+  border-radius: 0 0 26px 26px;
+}
+
+/* 上の帯の絵。文字の下に敷きます。
+   opacity を上げると見出しが読みにくくなるので、0.2 までにしてください。 */
+.hero__art {
+  position: absolute;
+  right: -4px;
+  bottom: -16px;
+  width: 186px;
+  height: auto;
+  color: var(--hero-fg);
+  opacity: .17;
+  pointer-events: none;
+}
+
+.hero__inner { position: relative; max-width: 640px; margin: 0 auto; }
+
+.hero__kicker {
+  margin: 0;
+  font-size: 10.5px;
+  letter-spacing: .34em;
+  color: var(--hero-sub);
+}
+
+.hero__title {
+  margin: 6px 0 8px;
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", serif;
+  font-weight: 600;
+  font-size: 27px;
+  letter-spacing: .1em;
+}
+
+.hero__sub {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--hero-sub);
+}
+.hero__sub a {
+  color: var(--hero-fg);
+  text-decoration: none;
+  border-bottom: 1px solid var(--hero-line);
+  padding-bottom: 1px;
+  margin-left: 4px;
+}
+
+/* 右上のボタン2つ。更新と明暗の切替を並べます */
+.hero__btns {
+  position: absolute;
+  top: calc(14px + env(safe-area-inset-top));
+  right: 18px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.theme-btn {
+  padding: 5px 11px;
+  border: 1px solid var(--hero-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--hero-sub);
+  font: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+.theme-btn:active { background: rgba(30, 74, 104, .12); }
+
+/* ---------- ページ ---------- */
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 26px 18px calc(48px + env(safe-area-inset-bottom));
+}
+
+/* ---------- アプリのカード ---------- */
+.apps { display: flex; flex-direction: column; gap: 14px; }
+
+.app {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 18px 20px 21px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  text-decoration: none;
+  color: inherit;
+}
+.app:active { background: var(--surface-2); }
+
+/* カードの左端の細い色帯。アプリごとの色をここでも出して、
+   カードとしるしが同じ持ち物だと分かるようにしています。 */
+.app::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 16px;
+  bottom: 16px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: currentColor;
+}
+.app--trip::before { color: var(--trip); }
+.app--flight::before { color: var(--flight); }
+.app--pack::before { color: var(--pack); }
+.app--entry::before { color: var(--entry); }
+.app--rate::before { color: var(--rate); }
+
+.app__icon {
+  flex: 0 0 auto;
+  width: 54px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 15px;
+  background: var(--tile);
+}
+.app__mark {
+  width: 34px;
+  height: 34px;
+  display: block;
+}
+/* 飛行機は塗りのしるしなので、線の地球と重さをそろえるために少し小さくします */
+.app__mark--plane { width: 29px; height: 29px; }
+
+.app--trip .app__icon { color: var(--trip); --tile: var(--tile-trip); }
+.app--flight .app__icon { color: var(--flight); --tile: var(--tile-flight); }
+.app--pack .app__icon { color: var(--pack); --tile: var(--tile-pack); }
+.app--entry .app__icon { color: var(--entry); --tile: var(--tile-entry); }
+.app--rate .app__icon { color: var(--rate); --tile: var(--tile-rate); }
+
+.app__body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+
+.app__name {
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", serif;
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: .06em;
+  line-height: 1.4;
+}
+.app__desc { font-size: 13px; color: var(--text-sub); }
+.app__detail {
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-weak);
+}
+
+.app__chev { flex: 0 0 auto; font-size: 22px; color: var(--text-weak); }
+
+/* ---------- 足元 ---------- */
+.foot {
+  margin-top: 30px;
+  font-size: 11.5px;
+  color: var(--text-weak);
+  text-align: center;
+}
+.foot p { margin: 0; }
+/* 鞄のしるし。ホーム画面のアイコンと同じ形なので、
+   「この1つを入れておけばよい」という文と絵が同じことを言っています。 */
+.foot__mark {
+  width: 26px;
+  height: 26px;
+  display: block;
+  margin: 0 auto 8px;
+  color: var(--text-weak);
+  opacity: .5;
+}
+
+/* ===== 更新ボタン =====
+   ホームボタンと同じ「囲みのある四角＝押せる」に揃えています。
+   押しているあいだは矢印が回って、待っていることが分かるようにします。 */
+.head-icon {
+  position: relative;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 10px;
+  font: inherit;
+  cursor: pointer;
+}
+/* 見た目は32pxのまま、指の当たり判定だけ44pxに広げます */
+.head-icon::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+.head-icon__i { width: 17px; height: 17px; display: block; }
+.head-icon.is-busy { pointer-events: none; }
+.head-icon.is-busy .head-icon__i { animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .head-icon.is-busy .head-icon__i { animation: none; opacity: .5; }
+}
+
+/* ===== 画面の上に出る短い知らせ =====
+   押したのに何も言われないと、効いたのかどうか分かりません。 */
+.toast {
+  position: fixed;
+  left: 50%;
+  top: calc(14px + env(safe-area-inset-top));
+  z-index: 60;
+  margin: 0;
+  padding: 9px 18px;
+  max-width: calc(100vw - 32px);
+  border-radius: 999px;
+  font-size: 13px;
+  text-align: center;
+  transform: translate(-50%, -14px);
+  opacity: 0;
+  transition: opacity .3s ease, transform .3s ease;
+  pointer-events: none;
+}
+.toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+.head-icon {
+  border: 1px solid var(--hero-line);
+  background: transparent;
+  color: var(--hero-sub);
+}
+.head-icon:active { background: rgba(30, 74, 104, .12); }
+.toast {
+  background: var(--text);
+  color: var(--bg);
+  box-shadow: 0 2px 10px rgba(20, 20, 25, .25);
+}
