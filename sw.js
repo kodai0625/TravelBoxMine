@@ -9,7 +9,7 @@
  * 中身が変わる＝端末が「新しい世話係だ」と気づく合図なので、
  * ここを消したり固定したりしないでください。
  */
-const VERSION = '98d3c5d2';
+const VERSION = '2b5886a7';
 const CACHE = 'travel-box-' + VERSION;
 
 self.addEventListener('install', (e) => {
